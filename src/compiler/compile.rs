@@ -17,6 +17,7 @@ impl Compiler {
         source_code: &str,
         source_file_name: &str,
         compile_cmd: &[String],
+        extra_dirs: &[String],
     ) -> Result<CompileResult, AppError> {
         // 1. Write source file to sandbox box directory
         let source_path = sandbox.box_path.join(source_file_name);
@@ -41,7 +42,8 @@ impl Compiler {
                 stdout_file: Some("compile_out.txt"),
                 stderr_file: Some("compile_err.txt"),
                 meta_file: None,
-                use_cg: false, // Compiling does not need cgroups/multi-process limits
+                use_cg: true, // Compiling uses cgroups for stable memory constraints
+                extra_dirs,
             },
         ).await?;
 

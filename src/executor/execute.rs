@@ -19,11 +19,12 @@ pub struct Executor;
 impl Executor {
     pub async fn execute(
         sandbox: &Sandbox,
-        source_or_exec_name: &str,
+        _source_or_exec_name: &str,
         stdin: &str,
         time_limit_ms: u64,
         memory_limit_kb: u64,
         exec_cmd: &[String],
+        extra_dirs: &[String],
     ) -> Result<ExecuteResult, AppError> {
         // 1. Write stdin to stdin.txt inside sandbox box
         let stdin_path = sandbox.box_path.join("stdin.txt");
@@ -41,6 +42,8 @@ impl Executor {
         let _ = fs::remove_file(&meta_path).await;
 
         // 3. Run execution inside sandbox
+        let meta_file_str = meta_path.to_string_lossy().to_string();
+
         let _status = isolate::run(
             sandbox.box_id,
             IsolateRunArgs {
@@ -50,8 +53,9 @@ impl Executor {
                 stdin_file: Some("stdin.txt"),
                 stdout_file: Some("stdout.txt"),
                 stderr_file: Some("stderr.txt"),
-                meta_file: Some("meta.txt"),
+                meta_file: Some(&meta_file_str),
                 use_cg: true, // Enable cgroups for execution timing and memory limits
+                extra_dirs,
             },
         ).await?;
 

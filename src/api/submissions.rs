@@ -112,12 +112,12 @@ pub async fn execute(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
     Json(payload): Json<CreateSubmissionRequest>,
-) -> Result<impl IntoResponse, AppError> {
+) -> Result<axum::response::Response, AppError> {
     let wait = params.get("wait").map(|v| v == "true").unwrap_or(false);
 
     if !wait {
         // Behaves exactly like POST /submissions if wait is false/missing
-        return create_submission(State(state), Json(payload)).await;
+        return Ok(create_submission(State(state), Json(payload)).await?.into_response());
     }
 
     // Synchronous execution using wait=true
@@ -186,7 +186,7 @@ pub async fn execute(
                 time_ms: final_sub.time_ms.unwrap_or(0),
                 memory_kb: final_sub.memory_kb.unwrap_or(0),
             };
-            Ok((StatusCode::OK, Json(res)))
+            Ok((StatusCode::OK, Json(res)).into_response())
         }
         Ok(Err(_)) => {
             // Oneshot sender dropped without sending (worker panic or pool shutdown)

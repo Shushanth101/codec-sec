@@ -11,19 +11,21 @@ pub struct IsolateRunArgs<'a> {
     pub stderr_file: Option<&'a str>,
     pub meta_file: Option<&'a str>,
     pub use_cg: bool,
+    pub extra_dirs: &'a [String],
 }
 
 pub async fn init(box_id: u32) -> Result<PathBuf, AppError> {
     let output = Command::new("isolate")
         .arg(format!("--box-id={}", box_id))
+        .arg("--cg")
         .arg("--init")
         .output()
         .await
-        .map_err(|e| AppError::SandboxError(format!("Failed to execute isolate --init: {}", e)))?;
+        .map_err(|e| AppError::SandboxError(format!("Failed to execute isolate --cg --init: {}", e)))?;
 
     if !output.status.success() {
         return Err(AppError::SandboxError(format!(
-            "isolate --init failed (code {:?}): {}",
+            "isolate --cg --init failed (code {:?}): {}",
             output.status.code(),
             String::from_utf8_lossy(&output.stderr)
         )));
@@ -32,23 +34,28 @@ pub async fn init(box_id: u32) -> Result<PathBuf, AppError> {
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let path_str = stdout_str.trim();
     if path_str.is_empty() {
-        return Err(AppError::SandboxError("isolate --init returned empty path".to_string()));
+        return Err(AppError::SandboxError("isolate --cg --init returned empty path".to_string()));
     }
 
-    Ok(PathBuf::from(path_str))
+    let mut box_path = PathBuf::from(path_str);
+    if !box_path.ends_with("box") {
+        box_path = box_path.join("box");
+    }
+    Ok(box_path)
 }
 
 pub async fn cleanup(box_id: u32) -> Result<(), AppError> {
     let output = Command::new("isolate")
         .arg(format!("--box-id={}", box_id))
+        .arg("--cg")
         .arg("--cleanup")
         .output()
         .await
-        .map_err(|e| AppError::SandboxError(format!("Failed to execute isolate --cleanup: {}", e)))?;
+        .map_err(|e| AppError::SandboxError(format!("Failed to execute isolate --cg --cleanup: {}", e)))?;
 
     if !output.status.success() {
         return Err(AppError::SandboxError(format!(
-            "isolate --cleanup failed (code {:?}): {}",
+            "isolate --cg --cleanup failed (code {:?}): {}",
             output.status.code(),
             String::from_utf8_lossy(&output.stderr)
         )));
@@ -60,16 +67,15 @@ pub async fn cleanup(box_id: u32) -> Result<(), AppError> {
 pub async fn run(box_id: u32, args: IsolateRunArgs<'_>) -> Result<std::process::ExitStatus, AppError> {
     let mut cmd = Command::new("isolate");
     cmd.arg(format!("--box-id={}", box_id));
+    cmd.arg("--processes");
+    cmd.arg("--env=PATH");
+    cmd.arg("--env=CARGO_HOME");
+    cmd.arg("--env=RUSTUP_HOME");
 
-    if args.use_cg {
-        cmd.arg("--cg");
-        if let Some(mem_limit) = args.memory_limit_kb {
-            cmd.arg(format!("--cg-mem={}", mem_limit));
-        }
-    } else {
-        if let Some(mem_limit) = args.memory_limit_kb {
-            cmd.arg(format!("--mem={}", mem_limit));
-        }
+    // Always use cgroups mode to prevent virtual address space limits breaking compilers/interpreters
+    cmd.arg("--cg");
+    if let Some(mem_limit) = args.memory_limit_kb {
+        cmd.arg(format!("--cg-mem={}", mem_limit));
     }
 
     if let Some(time_limit) = args.time_limit_ms {
@@ -93,6 +99,10 @@ pub async fn run(box_id: u32, args: IsolateRunArgs<'_>) -> Result<std::process::
 
     if let Some(meta) = args.meta_file {
         cmd.arg(format!("--meta={}", meta));
+    }
+
+    for dir in args.extra_dirs {
+        cmd.arg(format!("--dir={}", dir));
     }
 
     cmd.arg("--run");

@@ -24,6 +24,9 @@ cat <<EOT > /usr/local/etc/isolate
 box_root = /var/local/lib/isolate
 lock_root = /run/isolate/locks
 cg_root = /sys/fs/cgroup/isolate
+first_uid = 60000
+first_gid = 60000
+num_boxes = 100
 EOT
 
 # Ensure required run directories exist

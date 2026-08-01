@@ -27,7 +27,7 @@ impl Runtime for RustRuntime {
 
     fn compile_command(&self, source_file: &str, output_file: &str) -> Option<Vec<String>> {
         Some(vec![
-            "/usr/bin/rustc".to_string(),
+            "/usr/local/cargo/bin/rustc".to_string(),
             "-O".to_string(),
             source_file.to_string(),
             "-o".to_string(),
