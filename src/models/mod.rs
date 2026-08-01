@@ -52,8 +52,8 @@ pub struct CreateSubmissionRequest {
     pub language: String,
     pub source: String,
     pub stdin: Option<String>,
-    pub time_limit_ms: Option<u64>,
-    pub memory_limit_kb: Option<u64>,
+    pub time_limit_ms: Option<i64>,
+    pub memory_limit_kb: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

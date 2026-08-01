@@ -83,6 +83,7 @@ async fn main() {
         .route("/submissions", post(api::submissions::create_submission))
         .route("/submissions/:id", get(api::submissions::get_submission))
         .route("/execute", post(api::submissions::execute))
+        .layer(axum::extract::DefaultBodyLimit::max(15 * 1024 * 1024))
         .with_state(state);
 
     // 6. Start server

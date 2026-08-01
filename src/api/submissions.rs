@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{StatusCode, HeaderMap},
     response::IntoResponse,
     Json,
 };
@@ -29,9 +29,22 @@ pub struct SynchronousExecuteResponse {
 
 pub async fn create_submission(
     State(state): State<AppState>,
-    Json(payload): Json<CreateSubmissionRequest>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
 ) -> Result<impl IntoResponse, AppError> {
-    // 1. Validate request
+    // 1. Validate Content-Type
+    let content_type = headers.get(axum::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if !content_type.starts_with("application/json") {
+        return Err(AppError::InvalidRequest("Expected Content-Type: application/json".to_string()));
+    }
+
+    // 2. Deserialize request body
+    let payload: CreateSubmissionRequest = serde_json::from_slice(&body)
+        .map_err(|e| AppError::InvalidRequest(format!("Failed to deserialize request body: {}", e)))?;
+
+    // 3. Validate request fields
     if payload.source.len() > state.config.max_source_size {
         return Err(AppError::InvalidRequest(format!(
             "Source code size exceeds maximum limit of {} bytes",
@@ -46,10 +59,16 @@ pub async fn create_submission(
         )));
     }
 
-    let time_limit = payload.time_limit_ms.unwrap_or(state.config.default_time_limit_ms);
-    let memory_limit = payload.memory_limit_kb.unwrap_or(state.config.default_memory_limit_kb);
+    let time_limit = match payload.time_limit_ms {
+        Some(t) if t > 0 => std::cmp::min(t as u64, 10000), // Cap at 10s
+        _ => state.config.default_time_limit_ms,
+    };
+    let memory_limit = match payload.memory_limit_kb {
+        Some(m) if m > 0 => std::cmp::min(m as u64, 1048576), // Cap at 1GB
+        _ => state.config.default_memory_limit_kb,
+    };
 
-    // 2. Generate unique submission ID
+    // 4. Generate unique submission ID
     let submission_id = Uuid::new_v4().to_string();
 
     let submission = Submission {
@@ -69,10 +88,10 @@ pub async fn create_submission(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    // 3. Save to store
+    // 5. Save to store
     state.store.set(&submission_id, submission).await?;
 
-    // 4. Enqueue job
+    // 6. Enqueue job
     state.queue.enqueue(submission_id.clone()).await?;
 
     Ok((
@@ -111,13 +130,26 @@ pub async fn get_submission(
 pub async fn execute(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
-    Json(payload): Json<CreateSubmissionRequest>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
 ) -> Result<axum::response::Response, AppError> {
     let wait = params.get("wait").map(|v| v == "true").unwrap_or(false);
 
+    // 1. Validate Content-Type
+    let content_type = headers.get(axum::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if !content_type.starts_with("application/json") {
+        return Err(AppError::InvalidRequest("Expected Content-Type: application/json".to_string()));
+    }
+
+    // 2. Deserialize request body
+    let payload: CreateSubmissionRequest = serde_json::from_slice(&body)
+        .map_err(|e| AppError::InvalidRequest(format!("Failed to deserialize request body: {}", e)))?;
+
     if !wait {
         // Behaves exactly like POST /submissions if wait is false/missing
-        return Ok(create_submission(State(state), Json(payload)).await?.into_response());
+        return Ok(create_submission(State(state), headers, body).await?.into_response());
     }
 
     // Synchronous execution using wait=true
@@ -135,8 +167,14 @@ pub async fn execute(
         )));
     }
 
-    let time_limit = payload.time_limit_ms.unwrap_or(state.config.default_time_limit_ms);
-    let memory_limit = payload.memory_limit_kb.unwrap_or(state.config.default_memory_limit_kb);
+    let time_limit = match payload.time_limit_ms {
+        Some(t) if t > 0 => std::cmp::min(t as u64, 10000), // Cap at 10s
+        _ => state.config.default_time_limit_ms,
+    };
+    let memory_limit = match payload.memory_limit_kb {
+        Some(m) if m > 0 => std::cmp::min(m as u64, 1048576), // Cap at 1GB
+        _ => state.config.default_memory_limit_kb,
+    };
 
     let submission_id = Uuid::new_v4().to_string();
 

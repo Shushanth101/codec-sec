@@ -81,8 +81,8 @@ pub async fn run(box_id: u32, args: IsolateRunArgs<'_>) -> Result<std::process::
     if let Some(time_limit) = args.time_limit_ms {
         let limit_secs = time_limit as f64 / 1000.0;
         cmd.arg(format!("--time={}", limit_secs));
-        // Add wall-time slightly larger than CPU time
-        cmd.arg(format!("--wall-time={}", limit_secs * 2.0 + 1.0));
+        // Add wall-time slightly larger than CPU time to catch wall-clock hangs/sleeps
+        cmd.arg(format!("--wall-time={}", limit_secs + 0.09));
     }
 
     if let Some(stdin) = args.stdin_file {
