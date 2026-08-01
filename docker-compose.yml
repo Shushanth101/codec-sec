@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  codec-sec:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codec-sec
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "54054:54054"
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      - PORT=54054
+      - LOG_LEVEL=info
+      - DEFAULT_MEMORY_LIMIT_KB=262144
+      - DEFAULT_TIME_LIMIT_MS=2000
+      - MAX_SOURCE_SIZE=1048576
+      - MAX_CONCURRENT_SANDBOXES=20
+      - WORKER_THREADS=4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:54054/runtimes"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

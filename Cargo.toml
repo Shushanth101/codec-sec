@@ -1,0 +1,18 @@
+[package]
+name = "codec-sec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.4"
+tokio = { version = "1.35.1", features = ["full"] }
+serde = { version = "1.0.195", features = ["derive"] }
+serde_json = "1.0.111"
+uuid = { version = "1.6.1", features = ["v4", "serde"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+anyhow = "1.0.79"
+thiserror = "1.0.56"
+async-trait = "0.1.77"
+chrono = { version = "0.4.31", features = ["serde"] }
+
