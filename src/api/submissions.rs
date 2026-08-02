@@ -44,6 +44,36 @@ pub async fn create_submission(
     let payload: CreateSubmissionRequest = serde_json::from_slice(&body)
         .map_err(|e| AppError::InvalidRequest(format!("Failed to deserialize request body: {}", e)))?;
 
+    // Early interception for path traversal
+    if payload.language.contains("..") || payload.language.contains('/') || payload.language.contains('\\') {
+        let submission_id = Uuid::new_v4().to_string();
+        let submission = Submission {
+            id: submission_id.clone(),
+            language: payload.language,
+            source: payload.source,
+            stdin: payload.stdin,
+            time_limit_ms: 0,
+            memory_limit_kb: 0,
+            stack_limit_kb: 0,
+            status: SubmissionStatus::SandboxError,
+            stdout: None,
+            stderr: None,
+            compile_output: None,
+            exit_code: None,
+            time_ms: None,
+            memory_kb: None,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+        state.store.set(&submission_id, submission).await?;
+        return Ok((
+            StatusCode::ACCEPTED,
+            Json(CreateSubmissionResponse {
+                id: submission_id,
+                status: SubmissionStatus::SandboxError.as_str().to_string(),
+            }),
+        ));
+    }
+
     // 3. Validate request fields
     if payload.source.len() > state.config.max_source_size {
         return Err(AppError::InvalidRequest(format!(
@@ -67,6 +97,10 @@ pub async fn create_submission(
         Some(m) if m > 0 => std::cmp::min(m as u64, 1048576), // Cap at 1GB
         _ => state.config.default_memory_limit_kb,
     };
+    let stack_limit = match payload.stack_limit_kb {
+        Some(s) if s > 0 => std::cmp::min(s as u64, memory_limit), // Cap at memory limit
+        _ => 8192, // Default to 8MB
+    };
 
     // 4. Generate unique submission ID
     let submission_id = Uuid::new_v4().to_string();
@@ -78,6 +112,7 @@ pub async fn create_submission(
         stdin: payload.stdin,
         time_limit_ms: time_limit,
         memory_limit_kb: memory_limit,
+        stack_limit_kb: stack_limit,
         status: SubmissionStatus::Queued,
         stdout: None,
         stderr: None,
@@ -120,6 +155,7 @@ pub async fn get_submission(
                 exit_code: submission.exit_code,
                 time_ms: submission.time_ms,
                 memory_kb: submission.memory_kb,
+                stack_limit_kb: Some(submission.stack_limit_kb),
             };
             Ok(Json(res))
         }
@@ -152,6 +188,20 @@ pub async fn execute(
         return Ok(create_submission(State(state), headers, body).await?.into_response());
     }
 
+    // Early interception for path traversal
+    if payload.language.contains("..") || payload.language.contains('/') || payload.language.contains('\\') {
+        let res = SynchronousExecuteResponse {
+            stdout: String::new(),
+            stderr: String::new(),
+            compile_output: String::new(),
+            exit_code: 0,
+            status: "Sandbox Error".to_string(),
+            time_ms: 0,
+            memory_kb: 0,
+        };
+        return Ok((StatusCode::OK, Json(res)).into_response());
+    }
+
     // Synchronous execution using wait=true
     if payload.source.len() > state.config.max_source_size {
         return Err(AppError::InvalidRequest(format!(
@@ -175,6 +225,10 @@ pub async fn execute(
         Some(m) if m > 0 => std::cmp::min(m as u64, 1048576), // Cap at 1GB
         _ => state.config.default_memory_limit_kb,
     };
+    let stack_limit = match payload.stack_limit_kb {
+        Some(s) if s > 0 => std::cmp::min(s as u64, memory_limit), // Cap at memory limit
+        _ => 8192,
+    };
 
     let submission_id = Uuid::new_v4().to_string();
 
@@ -185,6 +239,7 @@ pub async fn execute(
         stdin: payload.stdin,
         time_limit_ms: time_limit,
         memory_limit_kb: memory_limit,
+        stack_limit_kb: stack_limit,
         status: SubmissionStatus::Queued,
         stdout: None,
         stderr: None,

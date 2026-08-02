@@ -27,7 +27,7 @@ impl Runtime for JavaRuntime {
 
     fn compile_command(&self, source_file: &str, _output_file: &str) -> Option<Vec<String>> {
         Some(vec![
-            "/usr/bin/javac".to_string(),
+            "/usr/lib/jvm/java-17-openjdk-amd64/bin/javac".to_string(),
             source_file.to_string(),
         ])
     }
@@ -35,7 +35,7 @@ impl Runtime for JavaRuntime {
     fn execute_command(&self, _source_or_exec_file: &str) -> Vec<String> {
         // Main class is assumed to be named Main, we write the file as Main.java
         vec![
-            "/usr/bin/java".to_string(),
+            "/usr/lib/jvm/java-17-openjdk-amd64/bin/java".to_string(),
             "Main".to_string(),
         ]
     }

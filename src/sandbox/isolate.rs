@@ -6,6 +6,9 @@ pub struct IsolateRunArgs<'a> {
     pub cmd: &'a [String],
     pub time_limit_ms: Option<u64>,
     pub memory_limit_kb: Option<u64>,
+    pub memory_limit_as_kb: Option<u64>,
+    pub stack_limit_kb: Option<u64>,
+    pub fsize_limit_kb: Option<u64>,
     pub stdin_file: Option<&'a str>,
     pub stdout_file: Option<&'a str>,
     pub stderr_file: Option<&'a str>,
@@ -76,6 +79,18 @@ pub async fn run(box_id: u32, args: IsolateRunArgs<'_>) -> Result<std::process::
     cmd.arg("--cg");
     if let Some(mem_limit) = args.memory_limit_kb {
         cmd.arg(format!("--cg-mem={}", mem_limit));
+    }
+
+    if let Some(mem_limit_as) = args.memory_limit_as_kb {
+        cmd.arg(format!("--mem={}", mem_limit_as));
+    }
+
+    if let Some(stack_limit) = args.stack_limit_kb {
+        cmd.arg(format!("--stack={}", stack_limit));
+    }
+
+    if let Some(fsize_limit) = args.fsize_limit_kb {
+        cmd.arg(format!("--fsize={}", fsize_limit));
     }
 
     if let Some(time_limit) = args.time_limit_ms {

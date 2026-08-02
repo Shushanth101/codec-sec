@@ -406,42 +406,97 @@ def async_test():
 
 
 def concurrent(n_workers, n_requests, label):
-    payload = {"language": "python", "source": "print(sum(range(1000)))"}
+    payload = {
+        "language": "python",
+        "source": "print(sum(range(1000)))"
+    }
+
     lat = []
     bad = 0
 
+    # Benchmark starts here
+    benchmark_start = time.perf_counter()
+
     def worker(i):
         r, dt = execute(payload)
+
         try:
             j = r.json()
         except Exception:
             j = {}
+
         return r.status_code, j.get("status"), j.get("stdout"), dt
 
     with ThreadPoolExecutor(max_workers=n_workers) as ex:
-        fs = [ex.submit(worker, i) for i in range(n_requests)]
-        for f in as_completed(fs):
+        futures = [ex.submit(worker, i) for i in range(n_requests)]
+
+        for f in as_completed(futures):
             sc, st, stdout, dt = f.result()
+
+            # store latency in milliseconds
             lat.append(dt * 1000)
+
             if sc != 200 or st != "Accepted" or stdout != "499500\n":
                 bad += 1
+
+    # Benchmark ends here
+    total_time = time.perf_counter() - benchmark_start
+
+    # Calculate statistics
+    lat.sort()
+
+    avg = sum(lat) / len(lat)
+    median = lat[len(lat) // 2]
+    p95 = lat[int(len(lat) * 0.95)]
+    p99 = lat[int(len(lat) * 0.99)]
+    minimum = min(lat)
+    maximum = max(lat)
+    throughput = n_requests / total_time
+
+    # Print benchmark
+    print("\n========================================")
+    print(f"Benchmark : {label}")
+    print("========================================")
+    print(f"Workers        : {n_workers}")
+    print(f"Requests       : {n_requests}")
+    print(f"Failures       : {bad}")
+    print(f"Total Time     : {total_time:.3f} sec")
+    print(f"Throughput     : {throughput:.2f} req/sec")
+    print(f"Average        : {avg:.2f} ms")
+    print(f"Median         : {median:.2f} ms")
+    print(f"P95            : {p95:.2f} ms")
+    print(f"P99            : {p99:.2f} ms")
+    print(f"Min            : {minimum:.2f} ms")
+    print(f"Max            : {maximum:.2f} ms")
+    print("========================================\n")
+
     RESULTS.append({
         "category": "Concurrency & Stress",
         "name": label,
         "request": f"{n_requests} parallel execute requests, {n_workers} workers",
         "status": "-",
-        "response": {"failures": bad, "avg_ms": round(sum(lat) / len(lat), 2), "max_ms": round(max(lat), 2), "min_ms": round(min(lat), 2)},
+        "response": {
+            "failures": bad,
+            "total_time_sec": round(total_time, 3),
+            "throughput_req_per_sec": round(throughput, 2),
+            "avg_ms": round(avg, 2),
+            "median_ms": round(median, 2),
+            "p95_ms": round(p95, 2),
+            "p99_ms": round(p99, 2),
+            "min_ms": round(minimum, 2),
+            "max_ms": round(maximum, 2),
+        },
         "expected": "0 failures",
         "ok": bad == 0,
         "latency": "-",
         "note": "",
     })
+
     global PASS, FAIL
     if bad == 0:
         PASS += 1
     else:
         FAIL += 1
-
 
 def concurrent_isolation_check():
     """
@@ -623,8 +678,12 @@ def main():
     run_api_robustness()
 
     async_test()
-    concurrent(20, 50, "Concurrent Stress (50 req / 20 workers)")
-    concurrent(50, 200, "Heavy Concurrent Stress (200 req / 50 workers)")
+    # concurrent(20, 50, "Concurrent Stress (50 req / 20 workers)")
+    # concurrent(50, 200, "Heavy Concurrent Stress (200 req / 50 workers)")
+    concurrent(10, 200, "10 workers")
+    concurrent(20, 200, "20 workers")
+    concurrent(50, 200, "50 workers")
+    concurrent(100, 200, "100 workers")
     concurrent_isolation_check()
     mixed_language_stress()
 

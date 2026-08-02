@@ -10,6 +10,7 @@ pub enum SubmissionStatus {
     RuntimeError,
     TimeLimitExceeded,
     MemoryLimitExceeded,
+    SandboxError,
     InternalError,
 }
 
@@ -24,6 +25,7 @@ impl SubmissionStatus {
             Self::RuntimeError => "Runtime Error",
             Self::TimeLimitExceeded => "Time Limit Exceeded",
             Self::MemoryLimitExceeded => "Memory Limit Exceeded",
+            Self::SandboxError => "Sandbox Error",
             Self::InternalError => "Internal Error",
         }
     }
@@ -37,6 +39,7 @@ pub struct Submission {
     pub stdin: Option<String>,
     pub time_limit_ms: u64,
     pub memory_limit_kb: u64,
+    pub stack_limit_kb: u64,
     pub status: SubmissionStatus,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
@@ -54,6 +57,7 @@ pub struct CreateSubmissionRequest {
     pub stdin: Option<String>,
     pub time_limit_ms: Option<i64>,
     pub memory_limit_kb: Option<i64>,
+    pub stack_limit_kb: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -73,6 +77,7 @@ pub struct SubmissionResponse {
     pub exit_code: Option<i32>,
     pub time_ms: Option<u64>,
     pub memory_kb: Option<u64>,
+    pub stack_limit_kb: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

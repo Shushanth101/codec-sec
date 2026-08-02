@@ -111,8 +111,6 @@ async fn run_worker_loop(ctx: &WorkerContext) -> Result<(), crate::errors::AppEr
     };
 
     let mut extra_dirs = Vec::new();
-    // Always mount /etc/alternatives so that command symlinks (like /usr/bin/cc -> /etc/alternatives/cc -> ...) resolve correctly
-    extra_dirs.push("/etc/alternatives=/etc/alternatives".to_string());
 
     if submission.language == "rust" {
         extra_dirs.push("/usr/local/cargo=/usr/local/cargo".to_string());
@@ -121,6 +119,9 @@ async fn run_worker_loop(ctx: &WorkerContext) -> Result<(), crate::errors::AppEr
         extra_dirs.push("/usr/lib/jvm=/usr/lib/jvm".to_string());
         extra_dirs.push("/etc/java-17-openjdk=/etc/java-17-openjdk".to_string());
     }
+
+    let mut compile_extra_dirs = extra_dirs.clone();
+    compile_extra_dirs.push("/etc/alternatives=/etc/alternatives".to_string());
 
     let mut compile_output: Option<String> = None;
 
@@ -150,7 +151,7 @@ async fn run_worker_loop(ctx: &WorkerContext) -> Result<(), crate::errors::AppEr
             &submission.source,
             &source_file_name,
             &compile_cmd,
-            &extra_dirs,
+            &compile_extra_dirs,
         ).await;
         let compile_duration = compile_start.elapsed();
 
@@ -221,8 +222,10 @@ async fn run_worker_loop(ctx: &WorkerContext) -> Result<(), crate::errors::AppEr
         submission.stdin.as_deref().unwrap_or(""),
         submission.time_limit_ms,
         submission.memory_limit_kb,
+        submission.stack_limit_kb,
         &exec_cmd,
         &extra_dirs,
+        &submission.language,
     ).await;
     let exec_duration = exec_start.elapsed();
 

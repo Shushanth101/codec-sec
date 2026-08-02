@@ -34,8 +34,48 @@ pub struct AppState {
     pub workers_ctx: Arc<WorkerContext>,
 }
 
+async fn compile_malloc_wrapper() {
+    let code = r#"
+void* __real_malloc(unsigned long size);
+void* __real_calloc(unsigned long num, unsigned long size);
+void* __real_realloc(void* ptr, unsigned long size);
+
+void* __wrap_malloc(unsigned long size) {
+    void* p = __real_malloc(size);
+    if (size > 0 && p == 0) {
+        __builtin_trap();
+    }
+    return p;
+}
+
+void* __wrap_calloc(unsigned long num, unsigned long size) {
+    void* p = __real_calloc(num, size);
+    if (num > 0 && size > 0 && p == 0) {
+        __builtin_trap();
+    }
+    return p;
+}
+
+void* __wrap_realloc(void* ptr, unsigned long size) {
+    void* p = __real_realloc(ptr, size);
+    if (size > 0 && p == 0) {
+        __builtin_trap();
+    }
+    return p;
+}
+"#;
+    let _ = tokio::fs::write("/app/malloc_wrapper.c", code).await;
+    let _ = tokio::process::Command::new("gcc")
+        .args(&["-O3", "-c", "/app/malloc_wrapper.c", "-o", "/app/malloc_wrapper.o"])
+        .status()
+        .await;
+}
+
 #[tokio::main]
 async fn main() {
+    // Compile malloc wrapper on startup
+    compile_malloc_wrapper().await;
+
     // 1. Load config
     let config = Config::from_env();
 

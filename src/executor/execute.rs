@@ -23,8 +23,10 @@ impl Executor {
         stdin: &str,
         time_limit_ms: u64,
         memory_limit_kb: u64,
+        stack_limit_kb: u64,
         exec_cmd: &[String],
         extra_dirs: &[String],
+        language: &str,
     ) -> Result<ExecuteResult, AppError> {
         // 1. Write stdin to stdin.txt inside sandbox box
         let stdin_path = sandbox.box_path.join("stdin.txt");
@@ -44,12 +46,21 @@ impl Executor {
         // 3. Run execution inside sandbox
         let meta_file_str = meta_path.to_string_lossy().to_string();
 
+        let limit_as = if language == "c" || language == "cpp" || language == "rust" {
+            Some(memory_limit_kb)
+        } else {
+            None
+        };
+
         let _status = isolate::run(
             sandbox.box_id,
             IsolateRunArgs {
                 cmd: exec_cmd,
                 time_limit_ms: Some(time_limit_ms),
                 memory_limit_kb: Some(memory_limit_kb),
+                memory_limit_as_kb: limit_as,
+                stack_limit_kb: Some(stack_limit_kb),
+                fsize_limit_kb: Some(1024), // Strict 1MB output/file write limit
                 stdin_file: Some("stdin.txt"),
                 stdout_file: Some("stdout.txt"),
                 stderr_file: Some("stderr.txt"),

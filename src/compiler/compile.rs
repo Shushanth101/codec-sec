@@ -25,6 +25,12 @@ impl Compiler {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to write source file to sandbox: {}", e)))?;
 
+        if source_file_name.ends_with(".c") || source_file_name.ends_with(".cpp") {
+            let wrapper_src = Path::new("/app/malloc_wrapper.o");
+            let wrapper_dest = sandbox.box_path.join("malloc_wrapper.o");
+            let _ = fs::copy(wrapper_src, wrapper_dest).await;
+        }
+
         // 2. Clear previous compile outputs if any
         let compile_out_path = sandbox.box_path.join("compile_out.txt");
         let compile_err_path = sandbox.box_path.join("compile_err.txt");
@@ -38,6 +44,9 @@ impl Compiler {
                 cmd: compile_cmd,
                 time_limit_ms: Some(10000), // 10 seconds limit for compiling
                 memory_limit_kb: Some(1048576), // 1GB limit for compiling
+                memory_limit_as_kb: None,
+                stack_limit_kb: Some(32768), // 32MB stack limit for compilation
+                fsize_limit_kb: Some(102400), // 100MB fsize limit for compilation outputs
                 stdin_file: None,
                 stdout_file: Some("compile_out.txt"),
                 stderr_file: Some("compile_err.txt"),
