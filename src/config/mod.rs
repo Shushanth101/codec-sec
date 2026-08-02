@@ -34,7 +34,7 @@ impl Config {
         let max_source_size = env::var("MAX_SOURCE_SIZE")
             .ok()
             .and_then(|val| val.parse().ok())
-            .unwrap_or(1048576); // 1MB
+            .unwrap_or(10485760); // 10MB
 
         let max_concurrent_sandboxes = env::var("MAX_CONCURRENT_SANDBOXES")
             .ok()

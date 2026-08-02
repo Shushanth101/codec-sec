@@ -29,6 +29,7 @@ impl Runtime for CRuntime {
         Some(vec![
             "/usr/bin/gcc".to_string(),
             "-O3".to_string(),
+            "-fno-optimize-sibling-calls".to_string(),
             source_file.to_string(),
             "-o".to_string(),
             output_file.to_string(),

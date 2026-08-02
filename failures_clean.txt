@@ -1,4 +1,4 @@
-Found 6 failures:
+Found 5 failures:
 
 === FAILURE 1 ===
 ## Test 24: MLE - C malloc bomb
@@ -20,8 +20,8 @@ Found 6 failures:
   "compile_output": "",
   "exit_code": 0,
   "status": "Accepted",
-  "time_ms": 1,
-  "memory_kb": 7388
+  "time_ms": 2,
+  "memory_kb": 7404
 }
 ```
 
@@ -29,7 +29,7 @@ HTTP: 200
 
 Expected: Runtime Error
 
-Latency: 136.61 ms
+Latency: 95.19 ms
 
 Result: ❌ FAIL
 
@@ -54,7 +54,7 @@ Result: ❌ FAIL
   "compile_output": "",
   "exit_code": 0,
   "status": "Memory Limit Exceeded",
-  "time_ms": 257,
+  "time_ms": 283,
   "memory_kb": 262144
 }
 ```
@@ -63,7 +63,7 @@ HTTP: 200
 
 Expected: Runtime Error
 
-Latency: 268.56 ms
+Latency: 296.3 ms
 
 Result: ❌ FAIL
 
@@ -87,9 +87,9 @@ Result: ❌ FAIL
   "stderr": "",
   "compile_output": "",
   "exit_code": 0,
-  "status": "Time Limit Exceeded",
-  "time_ms": 2048,
-  "memory_kb": 7724
+  "status": "Memory Limit Exceeded",
+  "time_ms": 280,
+  "memory_kb": 262144
 }
 ```
 
@@ -97,7 +97,7 @@ HTTP: 200
 
 Expected: Runtime Error
 
-Latency: 2148.36 ms
+Latency: 391.43 ms
 
 Result: ❌ FAIL
 
@@ -123,8 +123,8 @@ Result: ❌ FAIL
   "compile_output": "",
   "exit_code": 0,
   "status": "Accepted",
-  "time_ms": 24,
-  "memory_kb": 4340
+  "time_ms": 23,
+  "memory_kb": 4844
 }
 ```
 
@@ -132,7 +132,7 @@ HTTP: 200
 
 Expected: no leak, status in ['Runtime Error', 'Time Limit Exceeded', 'Memory Limit Exceeded', 'Accepted', 'Internal Error', 'Sandbox Error']
 
-Latency: 59.37 ms
+Latency: 77.72 ms
 
 Note: Even if a subprocess call succeeds, it should only see the sandboxed filesystem view, not the real host root listing. | LEAKED EVIDENCE OF ESCAPE: ['etc']
 
@@ -163,38 +163,9 @@ HTTP: 400
 
 Expected: no leak, status in ['Runtime Error', 'Time Limit Exceeded', 'Memory Limit Exceeded', 'Accepted', 'Internal Error', 'Sandbox Error']
 
-Latency: 4.14 ms
+Latency: 4.51 ms
 
 Note: Unknown/malicious language identifiers must be rejected (400), not used to build a filesystem path.
-
-Result: ❌ FAIL
-
-========================================
-
-=== FAILURE 6 ===
-## Test 58: Very large source payload (~2MB)
-
-### Request
-```json
-{
-  "language": "python",
-  "source": "# xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx... [TRUNCATED] ...
-}
-```
-
-### Response
-```json
-{
-  "error": "INVALID_REQUEST",
-  "message": "Source code size exceeds maximum limit of 1048576 bytes"
-}
-```
-
-HTTP: 400
-
-Expected: 200
-
-Latency: 15.12 ms
 
 Result: ❌ FAIL
 
