@@ -30,6 +30,20 @@ Result Collector (Parses meta file and captures stdout/stderr)
 
 ---
 
+## Security & Sandboxing Features
+
+CodecSec provides robust sandboxing constraints to ensure executing untrusted code does not impact the host system:
+
+*   **Sandbox Box Cleanup**: Sandbox containers are managed via a pool of IDs. Once compilation or execution completes and the `Sandbox` struct goes out of scope, Rust's `Drop` trait executes automatically. This spawns a background worker task to run `isolate --cleanup` for the specific box ID, purging all created files and folders immediately.
+*   **Virtual Memory & Address Space limits**:
+    *   For native languages (`c`, `cpp`, `rust`), CodecSec enforces virtual address space limits (`--mem`) equal to the requested memory limit.
+    *   To prevent silent allocation failures returning 0, a secure allocator wrapper (`malloc_wrapper.o`) is linked during C/C++ compilation. If a dynamic allocation (`malloc`, `calloc`, or `realloc`) fails due to memory exhaustion and returns `NULL`, the wrapper traps (`SIGILL`/`SIGABRT`), causing a `Runtime Error`.
+*   **Stack Limit Constraint**: CodecSec introduces an optional `stack_limit_kb` API parameter (defaulting to `8192` / 8MB). Enforced via `isolate`'s `--stack` option, it prevents infinite stack recursion from slowly page-faulting or timing out. Instead, stack overflow causes an instant `SIGSEGV` / `Runtime Error`.
+*   **Write Disk Quota Constraints**: Enforces a strict 1MB limit (`--fsize=1024` KB) on file sizes created during execution, successfully neutralizing sparse-file disk bombs.
+*   **Namespace Isolation**: Omit mounting `/etc/alternatives` and other shared libraries during interpreted execution (like Python), ensuring root namespace visibility does not leak any configurations or host paths (e.g. `etc`).
+
+---
+
 ## Setup & Running
 
 To run the entire engine inside Docker:
@@ -65,7 +79,8 @@ Here are the endpoints and request bodies you can use to test with Postman or Cu
   "source": "#include <iostream>\n\nint main() {\n    std::cout << \"Hello from CodecSec C++!\" << std::endl;\n    return 0;\n}",
   "stdin": "",
   "time_limit_ms": 2000,
-  "memory_limit_kb": 262144
+  "memory_limit_kb": 262144,
+  "stack_limit_kb": 8192
 }
 ```
 
